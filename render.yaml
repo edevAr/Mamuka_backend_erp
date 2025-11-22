@@ -1,11 +1,4 @@
 services:
-  # PostgreSQL Database
-  - type: pg
-    name: mamukas-erp-db
-    plan: free
-    databaseName: mamukas_erp
-    user: mamukas_user
-
   # Spring Boot Web Service
   - type: web
     name: mamukas-erp-backend
