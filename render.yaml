@@ -3,6 +3,7 @@ services:
   - type: web
     name: mamukas-erp-backend
     plan: free
+    env: docker
     dockerfilePath: ./Dockerfile
     envVars:
       # Database connection is automatically provided via DATABASE_URL by Render
