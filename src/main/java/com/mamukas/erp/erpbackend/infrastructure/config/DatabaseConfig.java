@@ -61,6 +61,13 @@ public class DatabaseConfig {
                 String password = dbUri.getUserInfo().split(":")[1];
                 String host = dbUri.getHost();
                 int port = dbUri.getPort();
+                
+                // If port is -1 (not specified), use default PostgreSQL port
+                if (port == -1) {
+                    port = 5432;
+                    logger.info("Port not specified in DATABASE_URL, using default PostgreSQL port: 5432");
+                }
+                
                 String path = dbUri.getPath();
                 String database = path.startsWith("/") ? path.substring(1) : path;
                 
