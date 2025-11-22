@@ -1,0 +1,55 @@
+services:
+  # PostgreSQL Database
+  - type: pg
+    name: mamukas-erp-db
+    plan: free
+    databaseName: mamukas_erp
+    user: mamukas_user
+
+  # Spring Boot Web Service
+  - type: web
+    name: mamukas-erp-backend
+    runtime: java
+    plan: free
+    buildCommand: ./gradlew build -x test
+    startCommand: java -jar build/libs/erpbackend-0.0.1-SNAPSHOT.jar
+    envVars:
+      # Database connection is automatically provided via DATABASE_URL by Render
+      # No need to set it manually if using the database service above
+      
+      # JWT Configuration
+      - key: JWT_SECRET
+        sync: false  # Set this manually in Render dashboard
+      
+      # Email Configuration
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: 587
+      - key: MAIL_USERNAME
+        sync: false  # Set this manually in Render dashboard
+      - key: MAIL_PASSWORD
+        sync: false  # Set this manually in Render dashboard (App Password from Gmail)
+      
+      # Application URLs (update with your actual frontend URL)
+      - key: FRONTEND_URL
+        value: https://your-frontend.onrender.com
+      - key: ACTIVATION_BASE_URL
+        value: https://mamukas-erp-backend.onrender.com/api
+      - key: PASSWORD_RESET_BASE_URL
+        value: https://your-frontend.onrender.com/reset-password
+      
+      # Logging (set to INFO or WARN for production)
+      - key: LOG_LEVEL
+        value: INFO
+      - key: LOG_LEVEL_WEB
+        value: INFO
+      - key: LOG_LEVEL_SQL
+        value: WARN
+      - key: LOG_LEVEL_SQL_BINDER
+        value: WARN
+      
+      # JPA Configuration
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update  # Use 'validate' or 'none' in production after initial setup
+
