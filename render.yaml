@@ -2,10 +2,8 @@ services:
   # Spring Boot Web Service
   - type: web
     name: mamukas-erp-backend
-    runtime: java
     plan: free
-    buildCommand: ./gradlew build -x test
-    startCommand: java -jar build/libs/erpbackend-0.0.1-SNAPSHOT.jar
+    dockerfilePath: ./Dockerfile
     envVars:
       # Database connection is automatically provided via DATABASE_URL by Render
       # No need to set it manually if using the database service above
