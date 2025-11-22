@@ -27,7 +27,7 @@ public class DatabaseConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(DatabaseConfig.class);
 
-    @Value("${DATABASE_URL:}")
+    // Try to get DATABASE_URL from environment variable first, then from Spring properties
     private String databaseUrl;
 
     @Value("${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mamukas_erp}")
@@ -46,8 +46,26 @@ public class DatabaseConfig {
     @Primary
     public DataSource dataSource() {
         logger.info("=== DatabaseConfig: Initializing DataSource ===");
+        
+        // Try to get DATABASE_URL from environment variable
+        databaseUrl = System.getenv("DATABASE_URL");
+        if (databaseUrl == null || databaseUrl.isEmpty()) {
+            // Try from Spring properties as fallback
+            try {
+                databaseUrl = System.getProperty("DATABASE_URL", "");
+            } catch (Exception e) {
+                logger.warn("Could not read DATABASE_URL from system properties", e);
+            }
+        }
+        
         logger.info("DATABASE_URL environment variable: {}", 
             databaseUrl != null && !databaseUrl.isEmpty() ? "SET (hidden)" : "NOT SET");
+        
+        // Log all environment variables that contain "DATABASE" for debugging
+        System.getenv().entrySet().stream()
+            .filter(entry -> entry.getKey().toUpperCase().contains("DATABASE"))
+            .forEach(entry -> logger.info("Found env var: {} = {}", entry.getKey(), 
+                entry.getKey().contains("PASSWORD") ? "***" : entry.getValue()));
         
         DataSourceBuilder<?> builder = DataSourceBuilder.create();
         
