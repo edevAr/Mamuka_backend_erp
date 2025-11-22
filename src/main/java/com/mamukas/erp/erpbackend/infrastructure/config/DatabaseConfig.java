@@ -1,12 +1,14 @@
 package com.mamukas.erp.erpbackend.infrastructure.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
-import javax.sql.DataSource;
+import jakarta.sql.DataSource;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -17,6 +19,8 @@ import java.net.URISyntaxException;
  */
 @Configuration
 public class DatabaseConfig {
+
+    private static final Logger logger = LoggerFactory.getLogger(DatabaseConfig.class);
 
     @Value("${DATABASE_URL:}")
     private String databaseUrl;
@@ -36,10 +40,15 @@ public class DatabaseConfig {
     @Bean
     @Primary
     public DataSource dataSource() {
+        logger.info("=== DatabaseConfig: Initializing DataSource ===");
+        logger.info("DATABASE_URL environment variable: {}", 
+            databaseUrl != null && !databaseUrl.isEmpty() ? "SET (hidden)" : "NOT SET");
+        
         DataSourceBuilder<?> builder = DataSourceBuilder.create();
         
         // If DATABASE_URL is provided (Render format), parse it
         if (databaseUrl != null && !databaseUrl.isEmpty() && !databaseUrl.startsWith("jdbc:")) {
+            logger.info("Parsing DATABASE_URL from Render format...");
             try {
                 URI dbUri = new URI(databaseUrl);
                 
@@ -58,13 +67,22 @@ public class DatabaseConfig {
                 builder.password(password);
                 builder.driverClassName("org.postgresql.Driver");
                 
+                logger.info("Using DATABASE_URL from environment: jdbc:postgresql://{}:{}/{}", host, port, database);
                 return builder.build();
             } catch (URISyntaxException e) {
+                logger.error("Invalid DATABASE_URL format: {}", databaseUrl, e);
                 throw new RuntimeException("Invalid DATABASE_URL format: " + databaseUrl, e);
+            } catch (Exception e) {
+                logger.error("Error parsing DATABASE_URL: {}", e.getMessage(), e);
+                throw e;
             }
         }
         
         // Otherwise, use standard Spring configuration from application.properties
+        logger.info("Using fallback configuration from application.properties");
+        logger.info("URL: {}", springDatasourceUrl);
+        logger.info("Username: {}", springDatasourceUsername);
+        
         builder.url(springDatasourceUrl);
         builder.username(springDatasourceUsername);
         builder.password(springDatasourcePassword);
