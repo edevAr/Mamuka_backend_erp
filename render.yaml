@@ -25,11 +25,11 @@ services:
       
       # Application URLs (update with your actual frontend URL)
       - key: FRONTEND_URL
-        sync: false  # Set this manually with your GitHub Pages URL
+        sync: https://edevar.github.io/Mamukas_client/  # Set this manually with your GitHub Pages URL
       - key: ACTIVATION_BASE_URL
         sync: false  # Will be set automatically after deployment
       - key: PASSWORD_RESET_BASE_URL
-        sync: false  # Set this manually with your GitHub Pages URL + /reset-password
+        sync: https://edevar.github.io/Mamukas_client/  # Set this manually with your GitHub Pages URL + /reset-password
       
       # Logging (set to INFO or WARN for production)
       - key: LOG_LEVEL
