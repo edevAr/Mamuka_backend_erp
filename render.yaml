@@ -25,11 +25,11 @@ services:
       
       # Application URLs (update with your actual frontend URL)
       - key: FRONTEND_URL
-        value: https://your-frontend.onrender.com
+        sync: false  # Set this manually with your GitHub Pages URL
       - key: ACTIVATION_BASE_URL
-        value: https://mamukas-erp-backend.onrender.com/api
+        sync: false  # Will be set automatically after deployment
       - key: PASSWORD_RESET_BASE_URL
-        value: https://your-frontend.onrender.com/reset-password
+        sync: false  # Set this manually with your GitHub Pages URL + /reset-password
       
       # Logging (set to INFO or WARN for production)
       - key: LOG_LEVEL
