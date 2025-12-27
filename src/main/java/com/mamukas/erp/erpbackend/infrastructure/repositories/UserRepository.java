@@ -122,6 +122,9 @@ public interface UserRepository extends JpaRepository<UserJpaEntity, Long> {
         user.setStatus(jpaEntity.getStatus());
         user.setEmailVerified(jpaEntity.getEmailVerified());
         user.setRoleId(jpaEntity.getRoleId());
+        // Manejar valores NULL para campos 2FA
+        user.setTwoFactorEnabled(jpaEntity.getTwoFactorEnabled() != null ? jpaEntity.getTwoFactorEnabled() : false);
+        user.setTwoFactorSecret(jpaEntity.getTwoFactorSecret());
         return user;
     }
     
@@ -143,6 +146,9 @@ public interface UserRepository extends JpaRepository<UserJpaEntity, Long> {
         jpaEntity.setStatus(user.getStatus());
         jpaEntity.setEmailVerified(user.getEmailVerified());
         jpaEntity.setRoleId(user.getRoleId());
+        // Manejar valores NULL para campos 2FA
+        jpaEntity.setTwoFactorEnabled(user.getTwoFactorEnabled() != null ? user.getTwoFactorEnabled() : false);
+        jpaEntity.setTwoFactorSecret(user.getTwoFactorSecret());
         return jpaEntity;
     }
 }

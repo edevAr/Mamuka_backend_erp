@@ -6,6 +6,7 @@ import com.mamukas.erp.erpbackend.application.services.UserService;
 import com.mamukas.erp.erpbackend.application.services.RoleService;
 import com.mamukas.erp.erpbackend.application.services.RolePermissionService;
 import com.mamukas.erp.erpbackend.application.services.SessionService;
+import com.mamukas.erp.erpbackend.application.services.TwoFactorAuthService;
 import com.mamukas.erp.erpbackend.application.exception.UserNotActivatedException;
 import com.mamukas.erp.erpbackend.application.exception.AccountInactiveException;
 import com.mamukas.erp.erpbackend.domain.entities.*;
@@ -49,6 +50,9 @@ public class AuthService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+    
+    @Autowired
+    private TwoFactorAuthService twoFactorAuthService;
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -136,13 +140,33 @@ public class AuthService {
             
             // Buscar usuario por email o username
             System.out.println("=== LOGIN STEP 1: Searching user ===");
+            System.out.println("Searching by email: " + request.getUsernameOrEmail());
             java.util.Optional<User> userByEmail = userService.findByEmail(request.getUsernameOrEmail());
+            System.out.println("User found by email: " + userByEmail.isPresent());
+            
+            System.out.println("Searching by username: " + request.getUsernameOrEmail());
             java.util.Optional<User> userByUsername = userService.findByUsername(request.getUsernameOrEmail());
+            System.out.println("User found by username: " + userByUsername.isPresent());
             
             User user = userByEmail.or(() -> userByUsername)
-                    .orElseThrow(() -> new RuntimeException("Credenciales inválidas"));
+                    .orElseThrow(() -> {
+                        System.out.println("=== LOGIN ERROR: User not found ===");
+                        return new RuntimeException("Credenciales inválidas");
+                    });
 
-            System.out.println("=== LOGIN STEP 2: User found - ID: " + user.getIdUser() + " ===");
+            System.out.println("=== LOGIN STEP 2: User found - ID: " + user.getIdUser() + ", Username: " + user.getUsername() + " ===");
+            System.out.println("User password hash: " + (user.getPassword() != null ? user.getPassword().substring(0, Math.min(20, user.getPassword().length())) + "..." : "NULL"));
+            System.out.println("Input password length: " + (request.getPassword() != null ? request.getPassword().length() : "NULL"));
+            
+            // Verificar la contraseña
+            System.out.println("=== LOGIN STEP 2.5: Verifying password ===");
+            boolean passwordMatches = passwordEncoder.matches(request.getPassword(), user.getPassword());
+            System.out.println("Password matches: " + passwordMatches);
+            
+            if (!passwordMatches) {
+                System.out.println("=== LOGIN ERROR: Password mismatch ===");
+                throw new RuntimeException("Credenciales inválidas");
+            }
             
             // Verificar el estado específico del usuario
             Integer userStatus = user.getStatus();
@@ -162,12 +186,27 @@ public class AuthService {
                 throw new RuntimeException("Invalid account status. Contact support.");
             }
 
-            System.out.println("=== LOGIN STEP 3: Creating session ===");
+            System.out.println("=== LOGIN STEP 3: Checking 2FA status ===");
+            
+            // Verificar si el usuario tiene 2FA habilitado
+            boolean twoFactorEnabled = Boolean.TRUE.equals(user.getTwoFactorEnabled());
+            System.out.println("2FA enabled for user: " + twoFactorEnabled);
+            
+            // Si tiene 2FA habilitado, requerir código antes de generar tokens
+            if (twoFactorEnabled) {
+                System.out.println("=== LOGIN STEP 3.5: 2FA required, returning response requesting code ===");
+                return new LoginTokenResponseDto(
+                    true, 
+                    "Two-factor authentication required. Please enter your 6-digit code."
+                );
+            }
+
+            System.out.println("=== LOGIN STEP 4: Creating session ===");
             
             // Crear sesión de login
             Session session = sessionService.createLoginSession(user.getIdUser(), device, ip);
             
-            System.out.println("=== LOGIN STEP 4: Generating tokens ===");
+            System.out.println("=== LOGIN STEP 5: Generating tokens ===");
             
             // Obtener el nombre del rol del usuario
             String roleName = "Unknown";
@@ -203,12 +242,119 @@ public class AuthService {
                 session.getIdSession()
             );
             
-            System.out.println("=== LOGIN STEP 5: Tokens generated successfully ===");
+            System.out.println("=== LOGIN STEP 6: Tokens generated successfully ===");
             
             return new LoginTokenResponseDto(accessToken, refreshToken);
             
         } catch (Exception e) {
             System.out.println("ERROR EN LOGIN: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
+    
+    /**
+     * Verify 2FA code and complete login
+     * @param request Login request with username/email, password, and 2FA code
+     * @param device Device information
+     * @param ip IP address
+     * @return LoginTokenResponseDto with tokens if code is valid
+     */
+    public LoginTokenResponseDto verifyTwoFactorAndLogin(LoginRequestDto request, Integer twoFactorCode, String device, String ip) {
+        try {
+            System.out.println("=== 2FA VERIFICATION: Starting ===");
+            System.out.println("UsernameOrEmail: " + request.getUsernameOrEmail());
+            System.out.println("2FA Code: " + twoFactorCode);
+            
+            // Buscar usuario por email o username
+            java.util.Optional<User> userByEmail = userService.findByEmail(request.getUsernameOrEmail());
+            java.util.Optional<User> userByUsername = userService.findByUsername(request.getUsernameOrEmail());
+            
+            User user = userByEmail.or(() -> userByUsername)
+                    .orElseThrow(() -> new RuntimeException("Credenciales inválidas"));
+
+            System.out.println("=== 2FA VERIFICATION: User found - ID: " + user.getIdUser() + " ===");
+            
+            // Verificar la contraseña
+            if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                System.out.println("=== 2FA VERIFICATION ERROR: Password mismatch ===");
+                throw new RuntimeException("Credenciales inválidas");
+            }
+            
+            // Verificar el estado del usuario
+            Integer userStatus = user.getStatus();
+            
+            if (userStatus == 0) {
+                throw new UserNotActivatedException("Your account is pending activation. Please verify your email.");
+            }
+            
+            if (userStatus == 2) {
+                throw new AccountInactiveException("Your account has been deactivated. Contact support.");
+            }
+            
+            if (userStatus != 1) {
+                throw new RuntimeException("Invalid account status. Contact support.");
+            }
+            
+            // Verificar que el usuario tenga 2FA habilitado
+            if (!Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
+                throw new RuntimeException("2FA is not enabled for this user");
+            }
+            
+            // Verificar el código 2FA
+            System.out.println("=== 2FA VERIFICATION: Verifying code ===");
+            boolean codeValid = twoFactorAuthService.verifyCode(user.getIdUser(), twoFactorCode.intValue());
+            
+            if (!codeValid) {
+                System.out.println("=== 2FA VERIFICATION ERROR: Invalid code ===");
+                throw new RuntimeException("Invalid 2FA code");
+            }
+            
+            System.out.println("=== 2FA VERIFICATION: Code valid, generating tokens ===");
+            
+            // Crear sesión de login
+            Session session = sessionService.createLoginSession(user.getIdUser(), device, ip);
+            
+            // Obtener el nombre del rol del usuario
+            String roleName = "Unknown";
+            if (user.getRoleId() != null) {
+                try {
+                    Role role = roleService.findById(user.getRoleId())
+                        .orElse(null);
+                    if (role != null) {
+                        roleName = role.getRoleName();
+                    }
+                } catch (Exception e) {
+                    System.out.println("Warning: Could not retrieve role name for user: " + e.getMessage());
+                }
+            }
+            
+            // Obtener los permisos del usuario
+            List<String> userPermissions = getUserPermissions(user.getRoleId());
+            
+            // Generar tokens JWT
+            String accessToken = jwtService.generateAccessToken(
+                user.getIdUser(), 
+                user.getUsername(), 
+                user.getEmail(),
+                roleName,
+                userPermissions,
+                session.getIdSession()
+            );
+            
+            String refreshToken = jwtService.generateRefreshToken(
+                user.getIdUser(), 
+                roleName, 
+                userPermissions,
+                session.getIdSession()
+            );
+            
+            System.out.println("=== 2FA VERIFICATION: Tokens generated successfully ===");
+            
+            return new LoginTokenResponseDto(accessToken, refreshToken);
+            
+        } catch (Exception e) {
+            System.out.println("ERROR EN 2FA VERIFICATION: " + e.getClass().getSimpleName() + " - " + e.getMessage());
             e.printStackTrace();
             throw e;
         }

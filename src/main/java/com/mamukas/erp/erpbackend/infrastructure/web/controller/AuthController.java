@@ -5,6 +5,7 @@ import com.mamukas.erp.erpbackend.application.dtos.request.RegisterRequestDto;
 import com.mamukas.erp.erpbackend.application.dtos.request.RefreshTokenRequestDto;
 import com.mamukas.erp.erpbackend.application.dtos.request.ForgotPasswordRequestDto;
 import com.mamukas.erp.erpbackend.application.dtos.request.ResetPasswordRequestDto;
+import com.mamukas.erp.erpbackend.application.dtos.request.VerifyTwoFactorRequestDto;
 import com.mamukas.erp.erpbackend.application.dtos.response.RegisterResponseDto;
 import com.mamukas.erp.erpbackend.application.dtos.response.LoginTokenResponseDto;
 import com.mamukas.erp.erpbackend.application.dtos.response.RefreshTokenResponseDto;
@@ -45,6 +46,12 @@ public class AuthController {
         try {
             // Use device and IP from the request DTO
             LoginTokenResponseDto response = authService.login(request, request.getDevice(), request.getIp());
+            
+            // Si se requiere 2FA, devolver respuesta indicando que se necesita código
+            if (response.isRequiresTwoFactor()) {
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (UserNotActivatedException e) {
             // Usuario con status 0 (pendiente de activación)
@@ -65,6 +72,44 @@ public class AuthController {
             ErrorResponseDto errorResponse = new ErrorResponseDto(
                 "invalid_credentials",
                 "Invalid username or password."
+            );
+            return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+        }
+    }
+    
+    @PostMapping("/verify-2fa")
+    public ResponseEntity<?> verifyTwoFactor(@Valid @RequestBody VerifyTwoFactorRequestDto request) {
+        try {
+            // Convertir VerifyTwoFactorRequestDto a LoginRequestDto para reutilizar lógica
+            LoginRequestDto loginRequest = new LoginRequestDto();
+            loginRequest.setUsernameOrEmail(request.getUsernameOrEmail());
+            loginRequest.setPassword(request.getPassword());
+            loginRequest.setDevice(request.getDevice());
+            loginRequest.setIp(request.getIp());
+            
+            LoginTokenResponseDto response = authService.verifyTwoFactorAndLogin(
+                loginRequest, 
+                request.getTwoFactorCode(), 
+                request.getDevice(), 
+                request.getIp()
+            );
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (UserNotActivatedException e) {
+            ErrorResponseDto errorResponse = new ErrorResponseDto(
+                "user_not_activated",
+                "Your account is pending activation. Please verify your email."
+            );
+            return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+        } catch (AccountInactiveException e) {
+            ErrorResponseDto errorResponse = new ErrorResponseDto(
+                "account_inactive", 
+                "Your account has been deactivated. Contact support."
+            );
+            return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+        } catch (RuntimeException e) {
+            ErrorResponseDto errorResponse = new ErrorResponseDto(
+                "invalid_2fa_code",
+                e.getMessage() != null ? e.getMessage() : "Invalid 2FA code or credentials."
             );
             return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
         }

@@ -50,6 +50,12 @@ public class UserJpaEntity {
     @Column(name = "role_id")
     private Long roleId;
     
+    @Column(name = "two_factor_enabled", nullable = false, columnDefinition = "boolean default false")
+    private Boolean twoFactorEnabled = false;
+    
+    @Column(name = "two_factor_secret", length = 255, nullable = true)
+    private String twoFactorSecret;
+    
     @Column(name = "created_at", updatable = false)
     @Temporal(TemporalType.TIMESTAMP)
     private java.util.Date createdAt;
@@ -60,6 +66,7 @@ public class UserJpaEntity {
     
     // Default constructor
     public UserJpaEntity() {
+        this.twoFactorEnabled = false; // Asegurar valor por defecto
     }
     
     // Constructor with all fields except ID and timestamps
@@ -74,17 +81,26 @@ public class UserJpaEntity {
         this.ci = ci;
         this.status = status;
         this.emailVerified = false; // Por defecto no verificado
+        this.twoFactorEnabled = false; // Por defecto 2FA deshabilitado
     }
     
     @PrePersist
     protected void onCreate() {
         createdAt = new java.util.Date();
         updatedAt = new java.util.Date();
+        // Asegurar valores por defecto para 2FA
+        if (twoFactorEnabled == null) {
+            twoFactorEnabled = false;
+        }
     }
     
     @PreUpdate
     protected void onUpdate() {
         updatedAt = new java.util.Date();
+        // Asegurar valores por defecto para 2FA
+        if (twoFactorEnabled == null) {
+            twoFactorEnabled = false;
+        }
     }
     
     // Getters and Setters
@@ -190,5 +206,21 @@ public class UserJpaEntity {
 
     public void setRoleId(Long roleId) {
         this.roleId = roleId;
+    }
+    
+    public Boolean getTwoFactorEnabled() {
+        return twoFactorEnabled;
+    }
+    
+    public void setTwoFactorEnabled(Boolean twoFactorEnabled) {
+        this.twoFactorEnabled = twoFactorEnabled;
+    }
+    
+    public String getTwoFactorSecret() {
+        return twoFactorSecret;
+    }
+    
+    public void setTwoFactorSecret(String twoFactorSecret) {
+        this.twoFactorSecret = twoFactorSecret;
     }
 }

@@ -17,6 +17,8 @@ public class User {
     private Integer status; // 0: Pendiente activación, 1: Activo, 2: Inactivo
     private Boolean emailVerified;
     private Long roleId; // FK to Role table
+    private Boolean twoFactorEnabled = false;
+    private String twoFactorSecret;
     
     // Default constructor
     public User() {
@@ -141,6 +143,22 @@ public class User {
 
     public void setRoleId(Long roleId) {
         this.roleId = roleId;
+    }
+    
+    public Boolean getTwoFactorEnabled() {
+        return twoFactorEnabled;
+    }
+    
+    public void setTwoFactorEnabled(Boolean twoFactorEnabled) {
+        this.twoFactorEnabled = twoFactorEnabled;
+    }
+    
+    public String getTwoFactorSecret() {
+        return twoFactorSecret;
+    }
+    
+    public void setTwoFactorSecret(String twoFactorSecret) {
+        this.twoFactorSecret = twoFactorSecret;
     }
     
     // Business logic methods

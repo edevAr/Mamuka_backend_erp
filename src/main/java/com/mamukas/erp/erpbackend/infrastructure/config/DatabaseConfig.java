@@ -30,13 +30,13 @@ public class DatabaseConfig {
     // Try to get DATABASE_URL from environment variable first, then from Spring properties
     private String databaseUrl;
 
-    @Value("${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mamukas_erp}")
+    @Value("${spring.datasource.url:jdbc:postgresql://localhost:5433/mamukas_erp}")
     private String springDatasourceUrl;
 
-    @Value("${DB_USERNAME:postgres}")
+    @Value("${spring.datasource.username:postgres}")
     private String springDatasourceUsername;
 
-    @Value("${DB_PASSWORD:postgres}")
+    @Value("${spring.datasource.password:postgres}")
     private String springDatasourcePassword;
 
     /**
